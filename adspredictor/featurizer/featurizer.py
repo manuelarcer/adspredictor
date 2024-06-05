@@ -9,6 +9,7 @@ class AtomFeatures:
         self.cutoff_cn = cutoff_cn
         self.neighbor_list = self.create_neighbor_list()
         self.surface_atoms = self.get_surface_atoms()
+        self.distances_matrix = self.atoms.get_all_distances(mic=True)
 
     def create_neighbor_list(self):
         """
@@ -63,6 +64,11 @@ class AtomFeatures:
         else:
             neigh_symb = self.atoms[neigh_i].get_chemical_symbols()
             return neigh_i, neigh_symb
+    
+    def get_neighbors_cutoff(self, ads, cutoff):
+        # returns a boolean array with the atoms that are within the cutoff range
+        condition = (self.distances_matrix[ads] >= cutoff[0]) & (self.distances_matrix[ads] < cutoff[1])
+        return condition
     
 class FeatureCreator:
     def __init__(self, df, ads, listmetals):
@@ -123,7 +129,21 @@ class FeatureCreator:
                         ], axis=1)
             for metal in self.listmetals:
                 self.df[f'neigh_{metal}'] = symbols.apply(lambda x: count_atoms_x_type(x, metal))
+        return self.df
+
+    def create_features_based_on_cutoff(self, cutoffs = []):
+        # cutoffs: list of float (List of cutoffs to use for the neighbors)
+        for i, cutoff in enumerate(cutoffs):
+            if i == 0:
+                limits = [(0, cutoff)]
+            else:
+                limits.append((cutoffs[i-1], cutoff))
         
+        for i, limpair in enumerate(limits):
+                symbolsserie = self.df.Atoms.apply(
+                        lambda x: x[AtomFeatures(x).get_neighbors_cutoff(self.ads, limpair)].get_chemical_symbols())
+                for metal in self.listmetals:    
+                    self.df[f'R{i}_{metal}'] = symbolsserie.apply(lambda x: count_atoms_x_type(x, metal))
         return self.df
 
 def count_atoms_x_type(listsymbols, metalsymb, avoid=[]):
