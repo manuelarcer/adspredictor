@@ -98,14 +98,14 @@ class FeatureCreator:
     def second_neighbors(self):
         dummy_df = pd.DataFrame(self.bindingsites_idx)
         second_neigh_serie = dummy_df.apply(
-                lambda x: [find_neigh(self.df.Atoms.iloc[x.name], i, avoid=[self.ads]) for i in x.iloc[0]], axis=1)
+                lambda x: [find_neigh(self.df.Atoms.loc[x.name], i, avoid=[self.ads]) for i in x.iloc[0]], axis=1)
         # Combine the lists in each row inside second_neighbors and then remove duplicates
         ## Needed for x-fold type of adsorption
         second_neigh_serie = second_neigh_serie.apply(lambda x: [item for sublist in x for item in sublist])
         second_neigh_serie = second_neigh_serie.apply(lambda x: list(set(x)))
         second_neigh_serie = pd.DataFrame(second_neigh_serie)
         second_neigh_serie = second_neigh_serie.apply(
-                lambda x: [i for i in x[0] if i not in self.bindingsites_idx.iloc[x.name]], axis=1
+                lambda x: [i for i in x[0] if i not in self.bindingsites_idx.loc[x.name]], axis=1
                 )
         return second_neigh_serie
     
@@ -115,17 +115,17 @@ class FeatureCreator:
         # Count the number of each atom type in the list
         if distinguishsurface:
             symbols_surf = second_neigh_serie.apply(lambda x: [
-                        self.df.Atoms.iloc[x.name][i].symbol for i in x.iloc[0] if i in AtomFeatures(self.df.Atoms.iloc[x.name]).get_surface_atoms()
+                        self.df.Atoms.loc[x.name][i].symbol for i in x.iloc[0] if i in AtomFeatures(self.df.Atoms.loc[x.name]).get_surface_atoms()
                         ], axis=1)
             symbols_bulk = second_neigh_serie.apply(lambda x: [
-                        self.df.Atoms.iloc[x.name][i].symbol for i in x.iloc[0] if i not in AtomFeatures(self.df.Atoms.iloc[x.name]).get_surface_atoms()
+                        self.df.Atoms.loc[x.name][i].symbol for i in x.iloc[0] if i not in AtomFeatures(self.df.Atoms.loc[x.name]).get_surface_atoms()
                         ], axis=1)
             for metal in self.listmetals:
                 self.df[f'neigh_surf_{metal}'] = symbols_surf.apply(lambda x: count_atoms_x_type(x, metal))
                 self.df[f'neigh_bulk_{metal}'] = symbols_bulk.apply(lambda x: count_atoms_x_type(x, metal))
         else:
             symbols = second_neigh_serie.apply(lambda x: [
-                        self.df.Atoms.iloc[x.name][i].symbol for i in x.iloc[0]
+                        self.df.Atoms.loc[x.name][i].symbol for i in x.iloc[0]
                         ], axis=1)
             for metal in self.listmetals:
                 self.df[f'neigh_{metal}'] = symbols.apply(lambda x: count_atoms_x_type(x, metal))
