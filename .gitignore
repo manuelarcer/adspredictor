@@ -1,0 +1,17 @@
+# Ignore Python cache directories and compiled files
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Ignore Jupyter Notebook checkpoints and specific notebooks
+*.ipynb_checkpoints/
+*.ipynb
+
+# Ignore database files
+*.db
+
+# Ignore model and other binary files (optional)
+*.pkl
+
+# Ignore any other unwanted files or directories
+.DS_Store
