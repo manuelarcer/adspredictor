@@ -3,7 +3,7 @@ import pandas as pd
 from ase.neighborlist import NeighborList, natural_cutoffs
 
 class AtomFeatures:
-    def __init__(self, atoms, natural_cutoff_factor=1, cutoff_cn=11):
+    def __init__(self, atoms, natural_cutoff_factor=1, cutoff_cn=11, isparticle=False):
         self.atoms = atoms
         self.natural_cutoff_factor = natural_cutoff_factor
         self.cutoff_cn = cutoff_cn
@@ -16,9 +16,11 @@ class AtomFeatures:
         Create a NeighborList object for the atoms object.
             natural_cutoff_factor: float
         """
+
         cutoffs = natural_cutoffs(self.atoms)
         nl = NeighborList([c * self.natural_cutoff_factor for c in cutoffs], self_interaction=False, bothways=True)
         nl.update(self.atoms)
+
         return nl
     
     def get_surface_atoms(self):
@@ -28,9 +30,17 @@ class AtomFeatures:
             cutoff_cn: int - coordination number cutoff for surface atoms
         """
         surface_atoms = []
+
+        if not self.isparticle:
+            ave_z = np.mean([atom.position[2] for atom in self.atoms])
+
         for atom in self.atoms:
             if len(self.neighbor_list.get_neighbors(atom.index)[0]) < self.cutoff_cn:
-                surface_atoms.append(atom.index)
+                if self.isparticle:
+                    surface_atoms.append(atom.index)
+                else:
+                    if atom.position[2] > ave_z:
+                        surface_atoms.append(atom.index)
         return surface_atoms
     
     def get_atom_index(self, interest):
