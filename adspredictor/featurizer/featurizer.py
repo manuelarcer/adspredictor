@@ -7,6 +7,7 @@ class AtomFeatures:
         self.atoms = atoms
         self.natural_cutoff_factor = natural_cutoff_factor
         self.cutoff_cn = cutoff_cn
+        self.isparticle = isparticle
         self.neighbor_list = self.create_neighbor_list()
         self.surface_atoms = self.get_surface_atoms()
         self.distances_matrix = self.atoms.get_all_distances(mic=True)
