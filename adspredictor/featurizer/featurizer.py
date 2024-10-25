@@ -18,13 +18,13 @@ class AtomFeatures:
             natural_cutoff_factor: float
         """
 
-        cutoffs = natural_cutoffs(self.atoms)
+        cutoffs = natural_cutoffs(self.atoms, mult=1)
         nl = NeighborList([c * self.natural_cutoff_factor for c in cutoffs], self_interaction=False, bothways=True)
         nl.update(self.atoms)
 
         return nl
     
-    def get_surface_atoms(self):
+    def get_surface_atoms(self):            # TODO: it does not seem to work entirely
         """ 
         Identify surface atoms based on coordination number. 
             natural_cutoff_factor: float - factor to multiply the natural cutoffs by
