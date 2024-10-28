@@ -82,9 +82,10 @@ class AtomFeatures:
         return condition
     
 class FeatureCreator:
-    def __init__(self, df, ads, listmetals):
+    def __init__(self, df, ads, listmetals, avoid=[]):
         self.df = df       # DataFrame with 'Atoms' column
         self.ads = ads
+        self.avoid = avoid
         self.listmetals = listmetals
         self.bindingsites_idx = self.bindingsites_indexes()
         self.bindingsites_symb = self.bindingsites_symbols()
@@ -109,7 +110,7 @@ class FeatureCreator:
     def second_neighbors(self):
         dummy_df = pd.DataFrame(self.bindingsites_idx)
         second_neigh_serie = dummy_df.apply(
-                lambda x: [find_neigh(self.df.Atoms.loc[x.name], i, avoid=[self.ads]) for i in x.iloc[0]], axis=1)
+                lambda x: [find_neigh(self.df.Atoms.loc[x.name], i, avoid=self.avoid) for i in x.iloc[0]], axis=1)
         # Combine the lists in each row inside second_neighbors and then remove duplicates
         ## Needed for x-fold type of adsorption
         second_neigh_serie = second_neigh_serie.apply(lambda x: [item for sublist in x for item in sublist])
@@ -154,7 +155,7 @@ class FeatureCreator:
                 symbolsserie = self.df.Atoms.apply(
                         lambda x: x[AtomFeatures(x).get_neighbors_cutoff(self.ads, limpair)].get_chemical_symbols())
                 for metal in self.listmetals:    
-                    self.df[f'R{i}_{metal}'] = symbolsserie.apply(lambda x: count_atoms_x_type(x, metal))
+                    self.df[f'R{i}_{metal}'] = symbolsserie.apply(lambda x: count_atoms_x_type(x, metal, avoid=self.avoid))
         return self.df
 
 def count_atoms_x_type(listsymbols, metalsymb, avoid=[]):
