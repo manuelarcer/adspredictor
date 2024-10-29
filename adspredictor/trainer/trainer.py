@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 import joblib
 
 class Trainer:
@@ -46,13 +48,26 @@ class Trainer:
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             X, y, test_size=self.test_size, random_state=self.random_state)
     
+    def initialize_pipeline(self):
+        """Initializes the pipeline with preprocessing and model."""
+        self.pipeline = Pipeline([
+            ('scaler', StandardScaler()),
+            ('model', self.model_class(**self.model_params))
+        ])
+    
     def train(self):
         """
-        Trains the model on the training data.
+        Trains the pipeline on the training data.
         """
         if self.X_train is None or self.y_train is None:
             self.split_data()
-        self.model.fit(self.X_train, self.y_train)
+        self.initialize_pipeline()
+        self.pipeline.fit(self.X_train, self.y_train)
+        #self.model.fit(self.X_train, self.y_train)
+
+    def save_pipeline(self, filename):
+        """Saves the trained pipeline to a file."""
+        joblib.dump(self.pipeline, filename)
     
     def evaluate(self):
         """
