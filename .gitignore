@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *.pyc
+# Optionally, ignore all `.pyc` files in any directory
+**/*.pyc
 
 # Ignore Jupyter Notebook checkpoints and specific notebooks
 *.ipynb_checkpoints/
