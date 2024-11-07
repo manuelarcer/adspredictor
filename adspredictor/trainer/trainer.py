@@ -27,7 +27,8 @@ class Trainer:
         self.test_size = test_size
         self.random_state = random_state
         self.model_params = model_params
-        self.model = self.initialize_model()
+        self.pipeline = self.initialize_pipeline()
+        #self.model = self.initialize_pipeline()
         self.X_train = None
         self.X_test = None
         self.y_train = None
@@ -50,10 +51,11 @@ class Trainer:
     
     def initialize_pipeline(self):
         """Initializes the pipeline with preprocessing and model."""
-        self.pipeline = Pipeline([
+        pipeline = Pipeline([
             ('scaler', StandardScaler()),
             ('model', self.model_class(**self.model_params))
         ])
+        return pipeline
     
     def train(self):
         """
@@ -61,13 +63,11 @@ class Trainer:
         """
         if self.X_train is None or self.y_train is None:
             self.split_data()
-        self.initialize_pipeline()
         self.pipeline.fit(self.X_train, self.y_train)
-        #self.model.fit(self.X_train, self.y_train)
 
     def save_pipeline(self, filename):
         """Saves the trained pipeline to a file."""
-        joblib.dump(self.pipeline, filename)
+        joblib.dump(self.model, filename)
     
     def evaluate(self):
         """
@@ -78,7 +78,7 @@ class Trainer:
         """
         if self.X_test is None or self.y_test is None:
             self.split_data()
-        y_pred = self.model.predict(self.X_test)
+        y_pred = self.pipeline.predict(self.X_test)
         mae = mean_absolute_error(self.y_test, y_pred)
         rmse = np.sqrt(mean_squared_error(self.y_test, y_pred))
         r2 = r2_score(self.y_test, y_pred)
@@ -98,7 +98,7 @@ class Trainer:
         """
         X = self.dataframe.drop(columns=[self.target_column])
         y = self.dataframe[self.target_column]
-        cv_scores = cross_val_score(self.model, X, y, cv=cv, scoring=scoring)
+        cv_scores = cross_val_score(self.pipeline, X, y, cv=cv, scoring=scoring)
         return cv_scores
     
     def grid_search(self, param_grid, cv=5, scoring='neg_mean_absolute_error'):
