@@ -28,7 +28,6 @@ class Trainer:
         self.random_state = random_state
         self.model_params = model_params
         self.pipeline = self.initialize_pipeline()
-        #self.model = self.initialize_pipeline()
         self.X_train = None
         self.X_test = None
         self.y_train = None
