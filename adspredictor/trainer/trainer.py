@@ -66,7 +66,7 @@ class Trainer:
 
     def save_pipeline(self, filename):
         """Saves the trained pipeline to a file."""
-        joblib.dump(self.model, filename)
+        joblib.dump(self.pipeline, filename)
     
     def evaluate(self):
         """
