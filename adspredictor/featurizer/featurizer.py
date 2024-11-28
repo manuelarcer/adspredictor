@@ -157,6 +157,15 @@ class FeatureCreator:
                 for metal in self.listmetals:    
                     self.df[f'R{i}_{metal}'] = symbolsserie.apply(lambda x: count_atoms_x_type(x, metal, avoid=self.avoid))
         return self.df
+    
+def ads_riadial_distribution(list_atoms, index):
+    # Calculate the radial distribution function from a particular atom 
+    list_distances = np.array([])
+    for atoms in list_atoms:
+        d_matrix = atoms.get_all_distances(mic=True)
+        distances = d_matrix[index]
+        list_distances = np.concatenate([list_distances, distances])
+    return list_distances
 
 def count_atoms_x_type(listsymbols, metalsymb, avoid=[]):
     # listsymbols: list of str (List of atom symbols)
