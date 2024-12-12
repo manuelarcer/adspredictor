@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 
 class Trainer:
-    def __init__(self, dataframe, target_column, model, test_size=0.2, random_state=None, **model_params):
+    def __init__(self, dataframe, target_column, model_class, model_params=None, test_size=0.2, random_state=None):
         """
         Initializes the Trainer class.
 
@@ -17,16 +17,16 @@ class Trainer:
         - dataframe: pandas DataFrame containing features and target
         - target_column: string, name of the target column in dataframe
         - model: scikit-learn estimator class (e.g., LinearRegression, SVR)
+        - model_params: dict, parameters to initialize the model
         - test_size: float, proportion of the dataset to include in the test split
         - random_state: int, random state for reproducibility
-        - **model_params: additional keyword arguments to pass to the model initializer
         """
         self.dataframe = dataframe
         self.target_column = target_column
-        self.model_class = model
+        self.model_class = model_class
         self.test_size = test_size
         self.random_state = random_state
-        self.model_params = model_params
+        self.model_params = model_params if model_params else {}
         self.pipeline = self.initialize_pipeline()
         self.X_train = None
         self.X_test = None
@@ -50,9 +50,20 @@ class Trainer:
     
     def initialize_pipeline(self):
         """Initializes the pipeline with preprocessing and model."""
+        
+        # Initialize the model with parameters if any
+        try:
+            model = self.model_class(**self.model_params)
+        except TypeError as e:
+            raise TypeError(
+                    f"Error initializing model: {e}. "
+                    f"Check if model_params are compatible with {self.model_class.__name__}."
+                    )
+        
+        # Create the pipeline
         pipeline = Pipeline([
             ('scaler', StandardScaler()),
-            ('model', self.model_class(**self.model_params))
+            ('model', model)
         ])
         return pipeline
     
