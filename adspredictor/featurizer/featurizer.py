@@ -24,7 +24,7 @@ class AtomFeatures:
 
         return nl
     
-    def get_surface_atoms(self):            # TODO: it does not seem to work entirely
+    def get_surface_atoms(self):                # TODO: it does not seem to work entirely
         """ 
         Identify surface atoms based on coordination number. 
             natural_cutoff_factor: float - factor to multiply the natural cutoffs by
@@ -60,7 +60,7 @@ class AtomFeatures:
             raise ValueError("Interest must be a string (atom symbol) or an integer (atom index).")
         return atom_index
     
-    def determine_neigbors(self, interest, indexonly=True):
+    def determine_neigbors(self, interest, indexonly=True, avoid=[]):
         """
         interest: str or int
             If str, the symbol of the atom of interest.
@@ -69,7 +69,9 @@ class AtomFeatures:
             List of atom symbols to avoid. Useful for filtering adsorbate atoms.
         """
         index = self.get_atom_index(interest)
+        avoid_index = [self.get_atom_index(a) for a in avoid]
         neigh_i, _ = self.neighbor_list.get_neighbors(index)
+        neigh_i = [i for i in neigh_i if i not in avoid_index]
         if indexonly:
             return neigh_i
         else:
@@ -82,24 +84,22 @@ class AtomFeatures:
         return condition
     
 class FeatureCreator:
-    def __init__(self, df, ads, listmetals, avoid=[]):
-        self.df = df       # DataFrame with 'Atoms' column
+    def __init__(self, df, ads, listmetals, avoid=[], isparticle=False, atomscol='Atoms'):
+        self.df = df       # DataFrame with 'Atoms' column (ase.Atoms objects)
         self.ads = ads
         self.avoid = avoid
+        self.atomscol = atomscol
+        self.isparticle = isparticle
         self.listmetals = listmetals
         self.bindingsites_idx = self.bindingsites_indexes()
         self.bindingsites_symb = self.bindingsites_symbols()
 
-#    def neigbors_serie(self, interest):
-#        # interest: str (Symbol) or int (Index) of atom of interest
-#        return self.df['Atoms'].apply(lambda x: AtomFeatures(x).determine_neigbors(interest, indexonly=False))
-
     def bindingsites_indexes(self):
-        serie = self.df['Atoms'].apply(lambda x: AtomFeatures(x).determine_neigbors(self.ads, indexonly=False))
+        serie = self.df[self.atomscol].apply(lambda x: AtomFeatures(x).determine_neigbors(self.ads, indexonly=False, avoid=self.avoid))
         return serie.apply(lambda x: x[0])
 
     def bindingsites_symbols(self):
-        serie = self.df['Atoms'].apply(lambda x: AtomFeatures(x).determine_neigbors(self.ads, indexonly=False))
+        serie = self.df[self.atomscol].apply(lambda x: AtomFeatures(x).determine_neigbors(self.ads, indexonly=False, avoid=self.avoid))
         return serie.apply(lambda x: x[1])
 
     def create_feature_binding_site(self):
@@ -110,7 +110,7 @@ class FeatureCreator:
     def second_neighbors(self):
         dummy_df = pd.DataFrame(self.bindingsites_idx)
         second_neigh_serie = dummy_df.apply(
-                lambda x: [find_neigh(self.df.Atoms.loc[x.name], i, avoid=self.avoid) for i in x.iloc[0]], axis=1)
+                lambda x: [find_neigh(self.df[self.atomscol].loc[x.name], i, avoid=self.avoid) for i in x.iloc[0]], axis=1)
         # Combine the lists in each row inside second_neighbors and then remove duplicates
         ## Needed for x-fold type of adsorption
         second_neigh_serie = second_neigh_serie.apply(lambda x: [item for sublist in x for item in sublist])
@@ -127,24 +127,25 @@ class FeatureCreator:
         # Count the number of each atom type in the list
         if distinguishsurface:
             symbols_surf = second_neigh_serie.apply(lambda x: [
-                        self.df.Atoms.loc[x.name][i].symbol for i in x.iloc[0] if i in AtomFeatures(self.df.Atoms.loc[x.name]).get_surface_atoms()
+                        self.df[self.atomscol].loc[x.name][i].symbol for i in x.iloc[0] if i in AtomFeatures(self.df[self.atomscol].loc[x.name]).get_surface_atoms()
                         ], axis=1)
             symbols_bulk = second_neigh_serie.apply(lambda x: [
-                        self.df.Atoms.loc[x.name][i].symbol for i in x.iloc[0] if i not in AtomFeatures(self.df.Atoms.loc[x.name]).get_surface_atoms()
+                        self.df[self.atomscol].loc[x.name][i].symbol for i in x.iloc[0] if i not in AtomFeatures(self.df[self.atomscol].loc[x.name]).get_surface_atoms()
                         ], axis=1)
             for metal in self.listmetals:
                 self.df[f'neigh_surf_{metal}'] = symbols_surf.apply(lambda x: count_atoms_x_type(x, metal))
                 self.df[f'neigh_bulk_{metal}'] = symbols_bulk.apply(lambda x: count_atoms_x_type(x, metal))
         else:
             symbols = second_neigh_serie.apply(lambda x: [
-                        self.df.Atoms.loc[x.name][i].symbol for i in x.iloc[0]
+                        self.df[self.atomscol].loc[x.name][i].symbol for i in x.iloc[0]
                         ], axis=1)
             for metal in self.listmetals:
                 self.df[f'neigh_{metal}'] = symbols.apply(lambda x: count_atoms_x_type(x, metal))
         return self.df
 
-    def create_features_based_on_cutoff(self, cutoffs = []):
+    def create_features_based_on_cutoff(self, cutoffs = [], surfdistinc=False):
         # cutoffs: list of float (List of cutoffs to use for the neighbors)
+        # surfdistinc: bool (If True, distinguish between surface and bulk atoms), this doubles the number of features
         for i, cutoff in enumerate(cutoffs):
             if i == 0:
                 limits = [(0, cutoff)]
@@ -152,10 +153,50 @@ class FeatureCreator:
                 limits.append((cutoffs[i-1], cutoff))
         
         for i, limpair in enumerate(limits):
-                symbolsserie = self.df.Atoms.apply(
-                        lambda x: x[AtomFeatures(x).get_neighbors_cutoff(self.ads, limpair)].get_chemical_symbols())
-                for metal in self.listmetals:    
-                    self.df[f'R{i}_{metal}'] = symbolsserie.apply(lambda x: count_atoms_x_type(x, metal, avoid=self.avoid))
+                # Instantiate AtomFeatures once per row
+                atom_features_series = self.df[self.atomscol].apply( lambda x: AtomFeatures(x, isparticle=True) )
+
+                # Retrieve neighbor boolean arrays within the cutoff range
+                neighbors_condition = atom_features_series.apply(lambda af: af.get_neighbors_cutoff(self.ads, limpair))
+
+                # Retrieve chemical symbols of the neighbors within the cutoff
+                symbolsserie = self.df.apply(
+                        lambda row: row[self.atomscol][neighbors_condition[row.name]].get_chemical_symbols(), axis=1 )
+                
+                if surfdistinc:
+                    # Retrieve surface atom indices for each row
+                    surf_atoms_series = atom_features_series.apply( lambda af: af.get_surface_atoms() )
+                    
+                    # Define a function to filter symbols based on surface and bulk
+                    def filter_symbols(row):
+                        neighbor_condition = neighbors_condition[row.name]
+                        neighbor_indices = np.where(neighbor_condition)[0]
+                        neighbor_symbols = row[self.atomscol][neighbor_condition].get_chemical_symbols()
+
+                        surf_atoms = surf_atoms_series[row.name]
+                        symbols_surf = [symbol for idx, symbol in zip(neighbor_indices, neighbor_symbols) if idx in surf_atoms]
+                        symbols_bulk = [symbol for idx, symbol in zip(neighbor_indices, neighbor_symbols) if idx not in surf_atoms]
+                        return symbols_surf, symbols_bulk
+
+                    # Apply the filtering function row-wise
+                    filtered_symbols = self.df.apply(filter_symbols, axis=1)
+
+                    # Extract surface and bulk symbols
+                    symbols_surf = filtered_symbols.apply(lambda x: x[0])
+                    symbols_bulk = filtered_symbols.apply(lambda x: x[1])
+
+                    for metal in self.listmetals:
+                        # Count metal atoms in surface neighbors
+                        self.df[f'R{i}_S_{metal}'] = symbols_surf.apply(
+                            lambda x: count_atoms_x_type(x, metal, avoid=self.avoid))
+                        # Count metal atoms in bulk neighbors
+                        self.df[f'R{i}_B_{metal}'] = symbols_bulk.apply(
+                            lambda x: count_atoms_x_type(x, metal, avoid=self.avoid))
+
+                else:
+                    for metal in self.listmetals:
+                        self.df[f'R{i}_{metal}'] = symbolsserie.apply(lambda x: count_atoms_x_type(x, metal, avoid=self.avoid))    
+                    
         return self.df
     
 def ads_riadial_distribution(list_atoms, index):
