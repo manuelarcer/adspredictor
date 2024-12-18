@@ -112,7 +112,7 @@ class FeatureCreator:
         dummy_df = pd.DataFrame(self.bindingsites_idx)
         # Find the second neighbors of the binding sites
         second_neigh_serie = dummy_df.apply(
-                lambda x: [find_neigh(self.df[self.atomscol].loc[x.name], i, avoid=self.avoid) for i in x.iloc[0]], axis=1)
+                lambda x: [find_neigh(self.df[self.atomscol].loc[x.name], i, avoid=self.avoid, natural_cutoff_factor=1.1) for i in x.iloc[0]], axis=1)
         # Combine the lists in each row inside second_neighbors and then remove duplicates
         ## Needed for x-fold type of adsorption
         second_neigh_serie = second_neigh_serie.apply(lambda x: [item for sublist in x for item in sublist])
