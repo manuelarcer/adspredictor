@@ -109,7 +109,7 @@ class Trainer:
         X = self.dataframe.drop(columns=[self.target_column])
         y = self.dataframe[self.target_column]
         cv_scores = cross_val_score(self.pipeline, X, y, cv=cv, scoring=scoring)
-        return cv_scores
+        return -cv_scores
     
     def grid_search(self, param_grid, cv=5, scoring='neg_mean_absolute_error'):
         """
