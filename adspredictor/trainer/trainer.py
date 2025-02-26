@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split, cross_val_score, GridSearc
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.utils import shuffle
 import joblib
 
 class Trainer:
@@ -95,7 +96,7 @@ class Trainer:
         metrics = {'MAE': mae, 'RMSE': rmse, 'R2': r2}
         return metrics
     
-    def cross_validate(self, cv=5, scoring='neg_mean_absolute_error'):
+    def cross_validate(self, cv=5, scoring='neg_mean_absolute_error'): #, random_state=1):
         """
         Performs cross-validation on the entire dataset.
 
@@ -106,10 +107,11 @@ class Trainer:
         Returns:
         - cv_scores: array of cross-validation scores
         """
+        #self.dataframe = shuffle(self.dataframe, random_state=random_state)
         X = self.dataframe.drop(columns=[self.target_column])
         y = self.dataframe[self.target_column]
         cv_scores = cross_val_score(self.pipeline, X, y, cv=cv, scoring=scoring)
-        return -cv_scores
+        return cv_scores
     
     def grid_search(self, param_grid, cv=5, scoring='neg_mean_absolute_error'):
         """

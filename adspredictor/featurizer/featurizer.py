@@ -59,38 +59,85 @@ class AtomFeatures:
         else:
             raise ValueError("Interest must be a string (atom symbol) or an integer (atom index).")
         return atom_index
-    
+
     def determine_neigbors(self, interest, indexonly=True, avoid=[]):
         """
-        interest: str or int
-            If str, the symbol of the atom of interest.
-            If int, the index of the atom of interest.
+        interest: str, int, or list of str/int
+            If a single value, returns neighbors of that atom.
+            If a list, returns the union of neighbors for all atoms specified.
         avoid: list of str
-            List of atom symbols to avoid. Useful for filtering adsorbate atoms.
+            List of atom symbols to avoid.
         """
-        index = self.get_atom_index(interest)
-        avoid_index = [self.get_atom_index(a) for a in avoid]
-        neigh_i, _ = self.neighbor_list.get_neighbors(index)
-        neigh_i = [i for i in neigh_i if i not in avoid_index]
-        if indexonly:
-            return neigh_i
+        # Allow for interest to be a list of identifiers
+        if isinstance(interest, list):
+            # Get indices for each adsorbate in the list
+            indices = [self.get_atom_index(i) for i in interest]
+            avoid_index = [self.get_atom_index(a) for a in avoid]
+            all_neighbors = set()
+            for idx in indices:
+                neigh, _ = self.neighbor_list.get_neighbors(idx)
+                # Filter out any atoms in the avoid list
+                filtered = [n for n in neigh if n not in avoid_index]
+                all_neighbors.update(filtered)
+            all_neighbors = list(all_neighbors)
+            if indexonly:
+                return all_neighbors
+            else:
+                neigh_symb = [self.atoms[i].symbol for i in all_neighbors]
+                return all_neighbors, neigh_symb
         else:
-            neigh_symb = self.atoms[neigh_i].get_chemical_symbols()
-            return neigh_i, neigh_symb
-    
+            # Single adsorbate case
+            index = self.get_atom_index(interest)
+            avoid_index = [self.get_atom_index(a) for a in avoid]
+            neigh_i, _ = self.neighbor_list.get_neighbors(index)
+            neigh_i = [i for i in neigh_i if i not in avoid_index]
+            if indexonly:
+                return neigh_i
+            else:
+                neigh_symb = [self.atoms[i].symbol for i in neigh_i]
+                return neigh_i, neigh_symb
+
     def get_neighbors_cutoff(self, ads, cutoff):
-        # returns a boolean array with the atoms that are within the cutoff range
-        condition = (self.distances_matrix[ads] >= cutoff[0]) & (self.distances_matrix[ads] < cutoff[1])
-        return condition
-    
+        """
+        Get a boolean mask for atoms that are within the specified cutoff range.
+        
+        ads: int, str, or list
+             If int or str, a single adsorbate identifier.
+             If list, a list of identifiers.
+        cutoff: tuple (float, float)
+             Lower (inclusive) and upper (exclusive) distance limits.
+        
+        Returns:
+             A boolean array of length equal to the number of atoms in self.atoms.
+             For a list of adsorbates, an atom is marked True if it is within the cutoff 
+             range from any of the adsorbates.
+        """
+        # If ads is given as a list, compute the condition for each adsorbate and combine them.
+        if isinstance(ads, list):
+            # Ensure that each identifier is converted to an index.
+            ads_indices = [self.get_atom_index(a) if not isinstance(a, int) else a for a in ads]
+            conditions = [
+                (self.distances_matrix[ad] >= cutoff[0]) & (self.distances_matrix[ad] < cutoff[1])
+                for ad in ads_indices
+            ]
+            # Combine the conditions: True if any adsorbate meets the condition
+            combined_condition = np.any(conditions, axis=0)
+            return combined_condition
+        else:
+            # Single adsorbate case (int or str)
+            ad_index = self.get_atom_index(ads) if not isinstance(ads, int) else ads
+            condition = (self.distances_matrix[ad_index] >= cutoff[0]) & (self.distances_matrix[ad_index] < cutoff[1])
+            return condition
+
 class FeatureCreator:
-    def __init__(self, df, ads, listmetals, avoid=[], isparticle=False, atomscol='Atoms'):
-        self.df = df       # DataFrame with 'Atoms' column (ase.Atoms objects)
+    def __init__(self, df, ads, listmetals, avoid=[], isparticle=False, atomscol='Atoms', natural_cutoff_factor=1.1):
+        self.df = df.copy()       # DataFrame with 'Atoms' column (ase.Atoms objects)
         self.ads = ads
         self.avoid = avoid
         self.atomscol = atomscol
         self.isparticle = isparticle
         self.listmetals = listmetals
+        self.natural_cutoff_factor = natural_cutoff_factor
         self.bindingsites_idx = self.bindingsites_indexes()
         self.bindingsites_symb = self.bindingsites_symbols()
 
@@ -112,7 +159,7 @@ class FeatureCreator:
         dummy_df = pd.DataFrame(self.bindingsites_idx)
         # Find the second neighbors of the binding sites
         second_neigh_serie = dummy_df.apply(
-                lambda x: [find_neigh(self.df[self.atomscol].loc[x.name], i, avoid=self.avoid, natural_cutoff_factor=1.1) for i in x.iloc[0]], axis=1)
+                lambda x: [find_neigh(self.df[self.atomscol].loc[x.name], i, avoid=self.avoid, natural_cutoff_factor=self.natural_cutoff_factor) for i in x.iloc[0]], axis=1)
         # Combine the lists in each row inside second_neighbors and then remove duplicates
         ## Needed for x-fold type of adsorption
         second_neigh_serie = second_neigh_serie.apply(lambda x: [item for sublist in x for item in sublist])
