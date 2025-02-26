@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 from ase.neighborlist import NeighborList, natural_cutoffs
+from tqdm import tqdm
+
+tqdm.pandas()
 
 class AtomFeatures:
     def __init__(self, atoms, natural_cutoff_factor=1.1, cutoff_cn=11, isparticle=False):
@@ -142,23 +145,27 @@ class FeatureCreator:
         self.bindingsites_symb = self.bindingsites_symbols()
 
     def bindingsites_indexes(self):
-        serie = self.df[self.atomscol].apply(lambda x: AtomFeatures(x).determine_neigbors(self.ads, indexonly=False, avoid=self.avoid))
+        print('    [Feature Creator] - Determining binding sites')
+        serie = self.df[self.atomscol].progress_apply(lambda x: AtomFeatures(x).determine_neigbors(self.ads, indexonly=False, avoid=self.avoid))
         return serie.apply(lambda x: x[0])
 
     def bindingsites_symbols(self):
-        serie = self.df[self.atomscol].apply(lambda x: AtomFeatures(x).determine_neigbors(self.ads, indexonly=False, avoid=self.avoid))
+        print('    [Feature Creator] - Determining binding sites')
+        serie = self.df[self.atomscol].progress_apply(lambda x: AtomFeatures(x).determine_neigbors(self.ads, indexonly=False, avoid=self.avoid))
         return serie.apply(lambda x: x[1])
 
     def create_feature_binding_site(self):
+        print('    [Feature Creator] - Creating binding site features')
         for metal in self.listmetals:
-            self.df[f'bonding_{metal}'] = self.bindingsites_symb.apply(lambda x: count_atoms_x_type(x, metal))
+            self.df[f'bonding_{metal}'] = self.bindingsites_symb.progress_apply(lambda x: count_atoms_x_type(x, metal))
         return self.df
 
     def second_neighbors(self):
+        print('    [Feature Creator] - Calculating second neighbors')
         # Binding sites to Dataframe
         dummy_df = pd.DataFrame(self.bindingsites_idx)
         # Find the second neighbors of the binding sites
-        second_neigh_serie = dummy_df.apply(
+        second_neigh_serie = dummy_df.progress_apply(
                 lambda x: [find_neigh(self.df[self.atomscol].loc[x.name], i, avoid=self.avoid, natural_cutoff_factor=self.natural_cutoff_factor) for i in x.iloc[0]], axis=1)
         # Combine the lists in each row inside second_neighbors and then remove duplicates
         ## Needed for x-fold type of adsorption
@@ -172,6 +179,7 @@ class FeatureCreator:
         return second_neigh_serie
     
     def create_feature_second_neighbors(self, distinguishsurface=False):
+        print('    [Feature Creator] - Creating second neighbors features')
         second_neigh_serie = self.second_neighbors()    # Shape: (n_samples, 1)
         second_neigh_serie = pd.DataFrame(second_neigh_serie)
         # Count the number of each atom type in the list
