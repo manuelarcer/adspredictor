@@ -188,14 +188,12 @@ class FeatureCreator:
         return second_neigh
 
     def second_neighbors(self):
-        # Compute second neighbors in parallel.
-        # TODO this part is very slow
-        second_neigh_list = Parallel(n_jobs=-1)(
-            delayed(self._compute_second_neighbors)(row)
-                for _, row in tqdm(self.df.iterrows(), total=len(self.df), desc="Processing second neighbors")
-        )
+        # Compute second neighbors serially with a progress bar.
+        second_neigh_list = []
+        for _, row in tqdm(self.df.iterrows(), total=len(self.df), desc="Processing second neighbors"):
+            second_neigh_list.append(self._compute_second_neighbors(row))
         self.df['second_neighbors'] = second_neigh_list
-        return self.df['second_neighbors']
+        return self.df['second_neighbors']    
 
     def create_feature_second_neighbors(self, distinguishsurface=False):
         print("Creating features based on second neighbors...")
