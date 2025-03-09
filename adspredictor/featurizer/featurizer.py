@@ -169,7 +169,7 @@ class FeatureCreator:
     def create_feature_binding_site(self):
         print("Creating features based on binding sites...")
         for metal in self.listmetals:
-            self.df[f'bonding_{metal}'] = self.bindingsites_symb.progress_apply(
+            self.df[f'bonding_{metal}'] = self.bindingsites_symb.apply(             # I had progress_apply
                 lambda symbols: count_atoms_x_type(symbols, metal, avoid=self.avoid)
             )
         return self.df
