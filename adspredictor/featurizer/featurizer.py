@@ -96,18 +96,18 @@ class AtomFeatures:
                 neigh_symb = [self.atoms[i].symbol for i in neigh]
                 return neigh, neigh_symb
 
-    def get_neighbors_cutoff(self, ads, cutoff):
+    def get_neighbors_cutoff(self, ads, cutoffs):
         d_matrix = self.distances_matrix
         if isinstance(ads, list):
             ads_indices = [self.get_atom_index(a) if not isinstance(a, int) else a for a in ads]
-            conditions = [(d_matrix[ad] >= cutoff[0]) & (d_matrix[ad] < cutoff[1])
+            conditions = [(d_matrix[ad] >= cutoffs[0]) & (d_matrix[ad] < cutoffs[1])
                           for ad in ads_indices]
             # Combine conditions: True if any adsorbate meets the condition.
             combined_condition = np.any(conditions, axis=0)
             return combined_condition
         else:
             ad_index = self.get_atom_index(ads) if not isinstance(ads, int) else ads
-            condition = (d_matrix[ad_index] >= cutoff[0]) & (d_matrix[ad_index] < cutoff[1])
+            condition = (d_matrix[ad_index] >= cutoffs[0]) & (d_matrix[ad_index] < cutoffs[1])
             return condition
 
 def count_atoms_x_type(listsymbols, metalsymb, avoid=[]):
