@@ -276,3 +276,69 @@ class FeatureCreator:
                         lambda x: count_atoms_x_type(x, metal, avoid=self.avoid)
                     )
         return self.df
+
+    def create_features_based_on_cutoff_multispecie(self, cutoffs=[], surfdistinc=False):
+        """
+        Create features for multi-specie adsorption.
+        For each cutoff range, this method distinguishes atoms that lie in the overlapping
+        region of all adsorbate spheres (R{i}_ovrlp_{metal}) from those that are within
+        at least one sphere but not in the overlap (R{i}_{metal}).
+        Parameters:
+        cutoffs: list of cutoff distances to define the ranges.
+        surfdistinc: (optional) if True, can be extended to further distinguish surface vs. bulk.
+        """
+        print("Creating multi-specie adsorption features based on cutoffs...")
+        # Build limits from the list of cutoff values.
+        limits = []
+        for i, cutoff in enumerate(cutoffs):
+            if i == 0:
+                limits.append((0, cutoff))
+            else:
+                limits.append((cutoffs[i - 1], cutoff))
+        
+        # Use the precomputed AtomFeatures series.
+        atom_features_series = self.df['atom_features']
+        
+        # Loop over cutoff ranges.
+        for i, limpair in enumerate(limits):
+            # For multi-adsorbates, compute for each adsorbate a condition array
+            # then derive overlap (logical AND) and overall (logical OR) conditions.
+            def compute_conditions(af):
+                d_matrix = af.distances_matrix
+                conditions = []
+                # Assume self.ads is a list of adsorbate identifiers (symbols or indices)
+                for adsorbate in self.ads:
+                    ad_index = af.get_atom_index(adsorbate) if not isinstance(adsorbate, int) else adsorbate
+                    cond = (d_matrix[ad_index] >= limpair[0]) & (d_matrix[ad_index] < limpair[1])
+                    conditions.append(cond)
+                conditions = np.array(conditions)
+                # Overlap: atoms within the cutoff range for all adsorbates.
+                overlap = np.all(conditions, axis=0)
+                # Overall: atoms within the cutoff range for at least one adsorbate.
+                overall = np.any(conditions, axis=0)
+                # Non-overlap: atoms that are in the overall region but not in the overlap.
+                non_overlap = overall & ~overlap
+                return overlap, non_overlap
+            
+            # Compute the conditions for each Atoms object in the DataFrame.
+            conditions_series = atom_features_series.apply(lambda af: compute_conditions(af))
+            
+            # For each row, extract the chemical symbols of atoms that meet the conditions.
+            overlap_symbols_series = self.df.apply(
+                lambda row: row[self.atomscol][conditions_series[row.name][0]].get_chemical_symbols(),
+                axis=1
+            )
+            non_overlap_symbols_series = self.df.apply(
+                lambda row: row[self.atomscol][conditions_series[row.name][1]].get_chemical_symbols(),
+                axis=1
+            )
+            
+            # Now, for each metal species, create features for the overlapping and non-overlapping regions.
+            for metal in self.listmetals:
+                self.df[f'R{i}_ovrlp_{metal}'] = overlap_symbols_series.apply(
+                    lambda x: count_atoms_x_type(x, metal, avoid=self.avoid)
+                )
+                self.df[f'R{i}_{metal}'] = non_overlap_symbols_series.apply(
+                    lambda x: count_atoms_x_type(x, metal, avoid=self.avoid)
+                )
+        return self.df
