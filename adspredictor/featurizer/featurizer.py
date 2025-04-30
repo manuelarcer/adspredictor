@@ -22,7 +22,7 @@ class AtomFeatures:
 
     def create_neighbor_list(self):
         cutoffs = natural_cutoffs(self.atoms, mult=1)
-        self._neighbor_list = NeighborList([c * self.natural_cutoff_factor for c in cutoffs],
+        self._neighbor_list = NeighborList([c * self.natural_cutoff_factor for c in cutoffs], 
                                            self_interaction=False, bothways=True)
         self._neighbor_list.update(self.atoms)
 
