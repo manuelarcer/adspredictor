@@ -7,7 +7,7 @@ from tqdm import tqdm
 tqdm.pandas()
 
 class AtomFeatures:
-    def __init__(self, atoms, natural_cutoff_factor=1.1, cutoff_cn=11, isparticle=False):
+    def __init__(self, atoms, natural_cutoff_factor=1., cutoff_cn=11, isparticle=False):
         self.atoms = atoms
         self.natural_cutoff_factor = natural_cutoff_factor
         self.cutoff_cn = cutoff_cn
