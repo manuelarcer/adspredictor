@@ -69,7 +69,7 @@ class AtomFeatures:
         else:
             raise ValueError("Interest must be a string (atom symbol) or an integer (atom index).")
 
-    def determine_neigbors(self, interest, indexonly=True, avoid=[]):
+    def determine_neighbors(self, interest, indexonly=True, avoid=[]):
         nl = self.get_neighbor_list()
         if isinstance(interest, list):
             indices = [self.get_atom_index(i) for i in interest]
