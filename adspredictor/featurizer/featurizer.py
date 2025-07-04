@@ -68,7 +68,7 @@ class AtomFeatures:
             return interest
         else:
             raise ValueError("Interest must be a string (atom symbol) or an integer (atom index).")
-
+        
     def determine_neighbors(self, interest, indexonly=True, avoid=[]):
         nl = self.get_neighbor_list()
         if isinstance(interest, list):
@@ -119,7 +119,7 @@ def count_atoms_x_type(listsymbols, metalsymb, avoid=[]):
 def find_neigh(atoms, interest, avoid=[], natural_cutoff_factor=1.1):
     af = AtomFeatures(atoms, natural_cutoff_factor=natural_cutoff_factor)
     index_to_avoid = [af.get_atom_index(a) for a in avoid]
-    all_neigh = af.determine_neigbors(interest)
+    all_neigh = af.determine_neighbors(interest)
     return [i for i in all_neigh if i not in index_to_avoid]
 
 def ads_riadial_distribution(list_atoms, index):
@@ -158,12 +158,12 @@ class FeatureCreator:
     def bindingsites_indexes(self):
         # Use precomputed atom_features to get binding site indices.
         return self.df['atom_features'].apply(
-            lambda af: af.determine_neigbors(self.ads, indexonly=False, avoid=self.avoid)[0]
+            lambda af: af.determine_neighbors(self.ads, indexonly=False, avoid=self.avoid)[0]
         )
 
     def bindingsites_symbols(self):
         return self.df['atom_features'].apply(
-            lambda af: af.determine_neigbors(self.ads, indexonly=False, avoid=self.avoid)[1]
+            lambda af: af.determine_neighbors(self.ads, indexonly=False, avoid=self.avoid)[1]
         )
 
     def create_feature_binding_site(self):
@@ -177,11 +177,11 @@ class FeatureCreator:
     def _compute_second_neighbors(self, row):
         # Helper function for parallel processing.
         af = row['atom_features']
-        binding_indices = af.determine_neigbors(self.ads, indexonly=True, avoid=self.avoid)
+        binding_indices = af.determine_neighbors(self.ads, indexonly=True, avoid=self.avoid)
         second_neigh = []
         # Use the cached neighbor list to get neighbors of each binding site.
         for idx in binding_indices:
-            neigh = af.determine_neigbors(idx, indexonly=True, avoid=self.avoid)
+            neigh = af.determine_neighbors(idx, indexonly=True, avoid=self.avoid)
             second_neigh.extend(neigh)
         # Remove duplicates and exclude the binding indices.
         second_neigh = list(set(second_neigh) - set(binding_indices))
